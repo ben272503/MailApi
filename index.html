@@ -9,106 +9,132 @@
 </head>
 <body>
 
-<h2>Envoyer un mail via l’API Gmail</h2>
+  <div class="container">
+    <h1>Envoyer un email via Gmail API</h1>
 
-<button id="authorize_button">Se connecter à Gmail</button>
-<button id="signout_button" style="display:none">Se déconnecter</button>
+    <textarea id="message" placeholder="Écris ton message ici...">Bonjour, ceci est un test d’envoi d’email via Gmail API.</textarea>
 
-<form id="email_form" style="margin-top:20px; display:none;">
-  <label>Destinataire :</label><br />
-  <input type="email" id="to" placeholder="ex: jean@exemple.fr" required /><br /><br />
+    <div>
+      <button id="authorize_button" class="btn">Se connecter à Gmail</button>
+      <button id="send_button" class="btn" disabled>Envoyer l’email</button>
+    </div>
 
-  <label>Sujet :</label><br />
-  <input type="text" id="subject" placeholder="Sujet du mail" required /><br /><br />
+    <div id="status"></div>
+  </div>
 
-  <label>Message :</label><br />
-  <textarea id="body" rows="6" cols="50" placeholder="Tape ton message ici" required></textarea><br /><br />
+  <!-- Load the Google API client library -->
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script>
+    // Tes identifiants Google Cloud
+    const CLIENT_ID = 'TON_CLIENT_ID_ICI.apps.googleusercontent.com';
+    const API_KEY = 'TON_API_KEY_ICI';
 
-  <button type="submit">Envoyer</button>
-</form>
+    // Les scopes nécessaires
+    const SCOPES = 'https://www.googleapis.com/auth/gmail.send';
 
-<script>
-  const CLIENT_ID = '454242049005-j9uhmcc6c1ta22vkma07g5063oei20a7.apps.googleusercontent.com'; // Remplace par ton client ID
-  const API_KEY = 'api-gmail-461709'; // Remplace par ta clé API
-  const SCOPES = 'https://www.googleapis.com/auth/gmail.send';
+    // Les adresses destinataires
+    const RECIPIENTS = ['jean@exemple.fr', 'fred@exemple.fr'];
 
-  let GoogleAuth;
+    const authorizeButton = document.getElementById('authorize_button');
+    const sendButton = document.getElementById('send_button');
+    const statusDiv = document.getElementById('status');
 
-  function handleClientLoad() {
-    gapi.load('client:auth2', initClient);
-  }
-
-  function initClient() {
-    gapi.client.init({
-      apiKey: API_KEY,
-      clientId: CLIENT_ID,
-      scope: SCOPES,
-      discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest']
-    }).then(() => {
-      GoogleAuth = gapi.auth2.getAuthInstance();
-
-      // Écoute les changements d’état de connexion
-      GoogleAuth.isSignedIn.listen(updateSigninStatus);
-
-      // Initialisation de l’interface
-      updateSigninStatus(GoogleAuth.isSignedIn.get());
-
-      document.getElementById('authorize_button').onclick = () => GoogleAuth.signIn();
-      document.getElementById('signout_button').onclick = () => GoogleAuth.signOut();
-    });
-  }
-
-  function updateSigninStatus(isSignedIn) {
-    if (isSignedIn) {
-      document.getElementById('authorize_button').style.display = 'none';
-      document.getElementById('signout_button').style.display = 'inline-block';
-      document.getElementById('email_form').style.display = 'block';
-    } else {
-      document.getElementById('authorize_button').style.display = 'inline-block';
-      document.getElementById('signout_button').style.display = 'none';
-      document.getElementById('email_form').style.display = 'none';
+    // Charge le client Google API
+    function handleClientLoad() {
+      gapi.load('client:auth2', initClient);
     }
-  }
 
-  function encodeEmail(to, subject, body) {
-    const str = 
-      `To: ${to}\r\n` +
-      `Subject: ${subject}\r\n` +
-      `Content-Type: text/plain; charset="UTF-8"\r\n\r\n` +
-      `${body}`;
-    // base64url encode
-    return btoa(unescape(encodeURIComponent(str)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-  }
+    // Initialise le client Google API
+    function initClient() {
+      gapi.client.init({
+        apiKey: API_KEY,
+        clientId: CLIENT_ID,
+        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"],
+        scope: SCOPES
+      }).then(() => {
+        // Écoute l’état de connexion
+        gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+        updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
 
-  document.getElementById('email_form').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const to = document.getElementById('to').value;
-    const subject = document.getElementById('subject').value;
-    const body = document.getElementById('body').value;
+        authorizeButton.onclick = handleAuthClick;
+        sendButton.onclick = sendEmail;
+      }, (error) => {
+        console.error(error);
+        statusDiv.textContent = 'Erreur lors de l\'initialisation Google API.';
+        statusDiv.style.color = 'red';
+      });
+    }
 
-    const raw = encodeEmail(to, subject, body);
-
-    gapi.client.gmail.users.messages.send({
-      userId: 'me',
-      resource: {
-        raw: raw
+    // Met à jour l'UI en fonction de la connexion
+    function updateSigninStatus(isSignedIn) {
+      if (isSignedIn) {
+        authorizeButton.style.display = 'none';
+        sendButton.disabled = false;
+        statusDiv.textContent = 'Connecté à Gmail. Tu peux envoyer un email.';
+        statusDiv.style.color = 'green';
+      } else {
+        authorizeButton.style.display = 'inline-block';
+        sendButton.disabled = true;
+        statusDiv.textContent = 'Non connecté.';
+        statusDiv.style.color = 'red';
       }
-    }).then(response => {
-      alert('Mail envoyé !');
-      console.log('Réponse API Gmail:', response);
-      this.reset();
-    }, err => {
-      alert('Erreur lors de l’envoi : ' + err.result.error.message);
-      console.error(err);
-    });
-  });
+    }
 
-  // Charger la lib Google API et lancer l’init
-  handleClientLoad();
-</script>
+    // Demande la connexion
+    function handleAuthClick(event) {
+      gapi.auth2.getAuthInstance().signIn();
+    }
+
+    // Fonction pour encoder le message en base64url
+    function base64urlEncode(str) {
+      return btoa(unescape(encodeURIComponent(str)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    }
+
+    // Construire le corps du mail
+    function makeEmailBody(to, subject, message) {
+      let email =
+        `To: ${to}\r\n` +
+        `Subject: ${subject}\r\n` +
+        `Content-Type: text/plain; charset="UTF-8"\r\n\r\n` +
+        `${message}`;
+      return base64urlEncode(email);
+    }
+
+    // Envoyer l’email via Gmail API
+    function sendEmail() {
+      const message = document.getElementById('message').value.trim();
+      if (!message) {
+        alert('Merci d\'écrire un message.');
+        return;
+      }
+
+      // On envoie un mail à chaque destinataire (boucle)
+      Promise.all(RECIPIENTS.map(to => {
+        const raw = makeEmailBody(to, "Message depuis mon site", message);
+        return gapi.client.gmail.users.messages.send({
+          userId: 'me',
+          resource: {
+            raw: raw
+          }
+        });
+      }))
+      .then(() => {
+        statusDiv.textContent = 'Emails envoyés avec succès !';
+        statusDiv.style.color = 'green';
+      })
+      .catch(err => {
+        console.error(err);
+        statusDiv.textContent = 'Erreur lors de l’envoi des emails.';
+        statusDiv.style.color = 'red';
+      });
+    }
+
+    // Démarrer le client Google API au chargement de la page
+    window.onload = handleClientLoad;
+  </script>
 
 </body>
 </html>
