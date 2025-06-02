@@ -60,6 +60,14 @@
       min-height: 24px;
       font-family: Arial, sans-serif;
     }
+
+  #auth-section {
+    margin-bottom: 15px;
+  }
+  #authorize_button, #signout_button {
+    margin-right: 10px;
+  }
+
   </style>
 
   <!-- Charge les librairies Google -->
@@ -68,17 +76,25 @@
 </head>
 
 <div class="container">
-  <textarea id="message" rows="6" placeholder="Écris ton message ici..."></textarea><br>
+<div id="auth-section">
+  <button id="authorize_button">Se connecter à Gmail</button>
+  <button id="signout_button" style="display: none;">Se déconnecter</button>
+</div>
+
+<textarea id="message" placeholder="Écris ton message ici..."></textarea>
+
+<div id="attachment-section">
   <input type="file" id="attachment" multiple />
   <div id="preview-files"></div>
+</div>
 
-  <button id="preview_button" class="btn">Aperçu du message</button>
-  <button id="authorize_button" class="btn">Se connecter à Gmail</button>
-  <button id="signout_button">Se déconnecter</button>
-  <button id="send_button" class="btn" disabled>Envoyer l'email</button>
+<div>
+  <button id="preview_button">Prévisualiser</button>
+  <button id="send_button" disabled>Envoyer le mail</button>
+</div>
 
-  <div id="message-preview" style="margin-top: 20px; white-space: pre-wrap;"></div>
-  <div id="status" style="margin-top: 15px;"></div>
+<div id="status"></div>
+<div id="message-preview"></div>
 </div>
 
 <script>
@@ -273,7 +289,7 @@ ${att.content}`;
       statusDiv.textContent = '✅ Connecté à Gmail';
       statusDiv.style.color = 'green';
     } else {
-      authorizeButton.style.display = 'inline-block';
+      authorizeButton.style.display = 'block';
       sendButton.disabled = true;
       statusDiv.textContent = '❌ Non connecté.';
       statusDiv.style.color = 'red';
