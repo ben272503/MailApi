@@ -74,6 +74,7 @@
 
   <button id="preview_button" class="btn">Aperçu du message</button>
   <button id="authorize_button" class="btn">Se connecter à Gmail</button>
+  <button id="signout_button" style="display:none;">Se déconnecter</button>
   <button id="send_button" class="btn" disabled>Envoyer l'email</button>
 
   <div id="message-preview" style="margin-top: 20px; white-space: pre-wrap;"></div>
@@ -88,6 +89,7 @@
 
   const authorizeButton = document.getElementById('authorize_button');
   const sendButton = document.getElementById('send_button');
+  const signoutButton = document.getElementById('signout_button');
   const previewButton = document.getElementById('preview_button');
   const statusDiv = document.getElementById('status');
   const previewDiv = document.getElementById('message-preview');
@@ -249,6 +251,8 @@ ${att.content}`;
         }
       });
 
+      signoutButton.onclick = signOut;
+
       updateSigninStatus(false);
       authorizeButton.onclick = () => tokenClient.requestAccessToken();
       sendButton.onclick = sendEmail;
@@ -263,7 +267,9 @@ ${att.content}`;
   function updateSigninStatus() {
     if (gapi.client.getToken() !== null) {
       authorizeButton.style.display = 'none';
+      signoutButton.style.display = 'inline-block';
       sendButton.disabled = false;
+
       statusDiv.textContent = '✅ Connecté à Gmail';
       statusDiv.style.color = 'green';
     } else {
@@ -271,8 +277,18 @@ ${att.content}`;
       sendButton.disabled = true;
       statusDiv.textContent = '❌ Non connecté.';
       statusDiv.style.color = 'red';
+      signoutButton.style.display = 'none';
+
     }
   }
+
+  function signOut() {
+  google.accounts.oauth2.revoke(gapi.client.getToken().access_token, () => {
+    gapi.client.setToken('');
+    updateSigninStatus(false);
+  });
+}
+
 
   window.onload = handleClientLoad;
 </script>
