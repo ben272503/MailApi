@@ -267,7 +267,7 @@ ${att.content}`;
   function updateSigninStatus() {
     if (gapi.client.getToken() !== null) {
       authorizeButton.style.display = 'none';
-      signoutButton.style.display = 'inline-block';
+      signoutButton.style.display = 'block';
       sendButton.disabled = false;
 
       statusDiv.textContent = '✅ Connecté à Gmail';
