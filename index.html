@@ -67,22 +67,18 @@
   <script src="https://apis.google.com/js/api.js"></script>
 </head>
 
-<body>
-  <div class="container">
-    <h2>Envoyer un email via Gmail</h2>
+<div class="container">
+  <textarea id="message" rows="6" placeholder="Écris ton message ici..."></textarea><br>
+  <input type="file" id="attachment" multiple />
+  <div id="preview-files"></div>
 
-    <textarea id="message" rows="5" placeholder="Écris ton message ici..."></textarea>
-    <input type="file" id="attachment" multiple/>
+  <button id="preview_button" class="btn">Aperçu du message</button>
+  <button id="authorize_button" class="btn">Se connecter à Gmail</button>
+  <button id="send_button" class="btn" disabled>Envoyer l'email</button>
 
-    <div>
-      <button id="authorize_button" style="display:none;">Se connecter à Gmail</button>
-      <button id="signout_button" style="display:none;">Déconnexion</button>
-    </div>
-
-    <button id="send_button" disabled>Envoyer l'email</button>
-
-    <div id="status"></div>
-  </div>
+  <div id="message-preview" style="margin-top: 20px; white-space: pre-wrap;"></div>
+  <div id="status" style="margin-top: 15px;"></div>
+</div>
 
 <script src="https://apis.google.com/js/api.js"></script>
 <script>
@@ -93,7 +89,44 @@
 
   const authorizeButton = document.getElementById('authorize_button');
   const sendButton = document.getElementById('send_button');
+  const previewButton = document.getElementById('preview_button');
   const statusDiv = document.getElementById('status');
+  const previewDiv = document.getElementById('message-preview');
+  const fileInput = document.getElementById('attachment');
+  const previewFiles = document.getElementById('preview-files');
+
+  let selectedFiles = [];
+
+  fileInput.addEventListener('change', () => {
+    selectedFiles = Array.from(fileInput.files);
+    updateFilePreview();
+  });
+
+  function updateFilePreview() {
+    previewFiles.innerHTML = '';
+    if (selectedFiles.length === 0) return;
+
+    selectedFiles.forEach((file, index) => {
+      const fileLine = document.createElement('div');
+      fileLine.style.marginBottom = '4px';
+
+      fileLine.innerHTML = `
+        📎 ${file.name} (${Math.round(file.size / 1024)} Ko)
+        <span style="color:red; cursor:pointer; margin-left:8px;" onclick="removeFile(${index})">❌</span>
+      `;
+
+      previewFiles.appendChild(fileLine);
+    });
+  }
+
+  window.removeFile = function(index) {
+    selectedFiles.splice(index, 1);
+    updateFilePreview();
+
+    if (selectedFiles.length === 0) {
+      fileInput.value = '';
+    }
+  }
 
   function base64urlEncode(str) {
     return btoa(unescape(encodeURIComponent(str)))
@@ -105,7 +138,7 @@
   function makeEmailWithAttachments(to, subject, message, files) {
     return new Promise((resolve, reject) => {
       const boundary = "boundary_" + Math.random().toString(36).substring(2);
-      const readerPromises = Array.from(files).map(file => new Promise((res, rej) => {
+      const readerPromises = files.map(file => new Promise((res, rej) => {
         const reader = new FileReader();
         reader.onload = () => {
           const base64 = reader.result.split(',')[1];
@@ -150,8 +183,7 @@ ${att.content}`;
 
   async function sendEmail() {
     const message = document.getElementById('message').value.trim();
-    const fileInput = document.getElementById('attachment');
-    const files = fileInput.files;
+    const files = selectedFiles;
 
     if (!message) {
       alert("Merci d'écrire un message.");
@@ -172,13 +204,34 @@ ${att.content}`;
         });
       }
 
-      statusDiv.textContent = 'Emails envoyés avec succès !';
+      statusDiv.textContent = '✅ Emails envoyés avec succès !';
       statusDiv.style.color = 'green';
+      previewDiv.textContent = '';
     } catch (e) {
       console.error(e);
-      statusDiv.textContent = 'Erreur lors de l’envoi des emails.';
+      statusDiv.textContent = '❌ Erreur lors de l’envoi des emails.';
       statusDiv.style.color = 'red';
     }
+  }
+
+  function previewMessage() {
+    const message = document.getElementById('message').value.trim();
+    const files = selectedFiles;
+    if (!message) {
+      alert("Merci d'écrire un message.");
+      return;
+    }
+
+    let previewText = `Aperçu du message à envoyer :\n\n${message}`;
+    if (files.length > 0) {
+      previewText += `\n\nPièces jointes :\n${files.map(f => `📎 ${f.name}`).join('\n')}`;
+    }
+
+    previewDiv.textContent = previewText;
+    previewDiv.style.border = "1px solid #ccc";
+    previewDiv.style.padding = "10px";
+    previewDiv.style.marginTop = "10px";
+    previewDiv.style.backgroundColor = "#fafafa";
   }
 
   function handleClientLoad() {
@@ -197,6 +250,7 @@ ${att.content}`;
 
       authorizeButton.onclick = () => gapi.auth2.getAuthInstance().signIn();
       sendButton.onclick = sendEmail;
+      previewButton.onclick = previewMessage;
     }, (error) => {
       console.error(error);
       statusDiv.textContent = 'Erreur lors de l\'initialisation de l\'API.';
@@ -208,18 +262,19 @@ ${att.content}`;
     if (isSignedIn) {
       authorizeButton.style.display = 'none';
       sendButton.disabled = false;
-      statusDiv.textContent = 'Connecté à Gmail. Tu peux envoyer un email.';
+      statusDiv.textContent = '✅ Connecté à Gmail';
       statusDiv.style.color = 'green';
     } else {
       authorizeButton.style.display = 'inline-block';
       sendButton.disabled = true;
-      statusDiv.textContent = 'Non connecté.';
+      statusDiv.textContent = '❌ Non connecté.';
       statusDiv.style.color = 'red';
     }
   }
 
   window.onload = handleClientLoad;
 </script>
+
 
 </body>
 </html>
