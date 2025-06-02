@@ -2,18 +2,89 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Connexion Gmail avec GIS</title>
+  <title>Envoyer un email via Gmail API</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      text-align: center;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgb(0 0 0 / 0.1);
+      width: 320px;
+    }
+
+    textarea {
+      width: 100%;
+      resize: vertical;
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+      font-family: Arial, sans-serif;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: #2980b9;
+    }
+
+    button:disabled {
+      background-color: #a0c5e8;
+      cursor: not-allowed;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-weight: bold;
+      min-height: 24px;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+
+  <!-- Charge les librairies Google -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js"></script>
 </head>
+
 <body>
-  <button id="authorize_button" style="display:none;">Se connecter</button>
-  <button id="signout_button" style="display:none;">Déconnexion</button>
-  <div id="status"></div>
-  <textarea id="message" rows="5" cols="40" placeholder="Écris ton message ici"></textarea><br />
-  <button id="send_button" disabled>Envoyer email</button>
+  <div class="container">
+    <h2>Envoyer un email via Gmail</h2>
+
+    <textarea id="message" rows="5" placeholder="Écris ton message ici..."></textarea>
+
+    <div>
+      <button id="authorize_button" style="display:none;">Se connecter à Gmail</button>
+      <button id="signout_button" style="display:none;">Déconnexion</button>
+    </div>
+
+    <button id="send_button" disabled>Envoyer l'email</button>
+
+    <div id="status"></div>
+  </div>
 
   <script>
+    // Remplace par tes infos Google Cloud Console
     const CLIENT_ID = 'TON_CLIENT_ID.apps.googleusercontent.com';
     const API_KEY = 'TA_CLE_API';
     const SCOPES = 'https://www.googleapis.com/auth/gmail.send';
@@ -28,7 +99,7 @@
     const sendButton = document.getElementById('send_button');
     const statusDiv = document.getElementById('status');
 
-    // Charge la Google API
+    // Charge la Google API Client
     function gapiLoaded() {
       gapi.load('client', initializeGapiClient);
     }
@@ -42,18 +113,22 @@
       maybeEnableButtons();
     }
 
-    // Initialise le client GIS
+    // Initialise Google Identity Services client
     function gisLoaded() {
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: SCOPES,
         callback: (tokenResponse) => {
           if (tokenResponse.error !== undefined) {
-            throw tokenResponse;
+            console.error('Token error:', tokenResponse);
+            statusDiv.textContent = 'Erreur d\'authentification';
+            statusDiv.style.color = 'red';
+            return;
           }
           accessToken = tokenResponse.access_token;
           sendButton.disabled = false;
           statusDiv.textContent = 'Connecté, prêt à envoyer un email.';
+          statusDiv.style.color = 'green';
           authorizeButton.style.display = 'none';
           signoutButton.style.display = 'inline-block';
         },
@@ -69,22 +144,43 @@
       }
     }
 
+    // Quand on clique sur "Se connecter"
     authorizeButton.onclick = () => {
       tokenClient.requestAccessToken();
     };
 
+    // Quand on clique sur "Déconnexion"
     signoutButton.onclick = () => {
       if (accessToken) {
         google.accounts.oauth2.revoke(accessToken);
         accessToken = null;
         sendButton.disabled = true;
         statusDiv.textContent = 'Déconnecté.';
+        statusDiv.style.color = 'black';
         authorizeButton.style.display = 'inline-block';
         signoutButton.style.display = 'none';
       }
     };
 
-    // Envoi d’email simplifié
+    // Fonction pour encoder en base64url
+    function base64urlEncode(str) {
+      return btoa(unescape(encodeURIComponent(str)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    }
+
+    // Crée le corps du mail au format raw
+    function makeEmailBody(to, subject, message) {
+      return (
+        `To: ${to}\r\n` +
+        `Subject: ${subject}\r\n` +
+        `Content-Type: text/plain; charset="UTF-8"\r\n\r\n` +
+        `${message}`
+      );
+    }
+
+    // Envoie un email à une adresse
     async function sendEmail() {
       const message = document.getElementById('message').value.trim();
       if (!message) {
@@ -92,31 +188,29 @@
         return;
       }
 
-      const email = 
-        `To: benjamin24.joke@gmail.com\r\n` +
-        `Subject: Message depuis mon site\r\n` +
-        `Content-Type: text/plain; charset="UTF-8"\r\n\r\n` +
-        `${message}`;
-
-      const encodedEmail = btoa(unescape(encodeURIComponent(email))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      // Liste des destinataires fixes ici
+      const recipients = ['benjamin24.joke@gmail.com', 'benjamins.vendee.globe@gmail.com'];
 
       try {
-        await gapi.client.gmail.users.messages.send({
-          userId: 'me',
-          resource: {
-            raw: encodedEmail,
-          }
-        });
-        statusDiv.textContent = 'Email envoyé !';
+        for (const to of recipients) {
+          const raw = base64urlEncode(makeEmailBody(to, 'Message depuis mon site', message));
+          await gapi.client.gmail.users.messages.send({
+            userId: 'me',
+            resource: { raw },
+          });
+        }
+        statusDiv.textContent = 'Emails envoyés avec succès !';
+        statusDiv.style.color = 'green';
       } catch (e) {
         console.error(e);
-        statusDiv.textContent = 'Erreur lors de l\'envoi de l\'email.';
+        statusDiv.textContent = 'Erreur lors de l’envoi des emails.';
+        statusDiv.style.color = 'red';
       }
     }
 
     sendButton.onclick = sendEmail;
 
-    // Charge les APIs quand le script est chargé
+    // Démarrage
     window.onload = () => {
       gapiLoaded();
       gisLoaded();
