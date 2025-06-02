@@ -1,50 +1,29 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Envoyer un mail avec l'API Gmail</title>
-<script src="https://apis.google.com/js/api.js"></script>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <title>Test Connexion Gmail</title>
+  <script src="https://apis.google.com/js/api.js"></script>
+  <style>
+    #authorize_button { padding: 10px 20px; font-size: 16px; }
+  </style>
 </head>
 <body>
+  <button id="authorize_button">Se connecter à Gmail</button>
+  <div id="status"></div>
 
-  <div class="container">
-    <h1>Envoyer un email via Gmail API</h1>
-
-    <textarea id="message" placeholder="Écris ton message ici...">Bonjour, ceci est un test d’envoi d’email via Gmail API.</textarea>
-
-    <div>
-      <button id="authorize_button" class="btn">Se connecter à Gmail</button>
-      <button id="send_button" class="btn" disabled>Envoyer l’email</button>
-    </div>
-
-    <div id="status"></div>
-  </div>
-
-  <!-- Load the Google API client library -->
-  <script src="https://apis.google.com/js/api.js"></script>
   <script>
-    // Tes identifiants Google Cloud
     const CLIENT_ID = '454242049005-78upa3iiobs9nu72avo3m5aeri7ptt7g.apps.googleusercontent.com';
     const API_KEY = 'AIzaSyBnoXIDbrGoBJorZQWx1gT1XFHlWU-3oio';
-
-    // Les scopes nécessaires
     const SCOPES = 'https://www.googleapis.com/auth/gmail.send';
 
-    // Les adresses destinataires
-    const RECIPIENTS = ['benjamin24.joke@gmail.com', 'benjamins.vendee.globe@gmail.com'];
-
     const authorizeButton = document.getElementById('authorize_button');
-    const sendButton = document.getElementById('send_button');
     const statusDiv = document.getElementById('status');
 
-    // Charge le client Google API
     function handleClientLoad() {
       gapi.load('client:auth2', initClient);
     }
 
-    // Initialise le client Google API
     function initClient() {
       gapi.client.init({
         apiKey: API_KEY,
@@ -52,89 +31,25 @@
         discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"],
         scope: SCOPES
       }).then(() => {
-        // Écoute l’état de connexion
         gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
         updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
 
-        authorizeButton.onclick = handleAuthClick;
-        sendButton.onclick = sendEmail;
+        authorizeButton.onclick = () => gapi.auth2.getAuthInstance().signIn();
       }, (error) => {
         console.error(error);
-        statusDiv.textContent = 'Erreur lors de l\'initialisation Google API.';
-        statusDiv.style.color = 'red';
+        statusDiv.textContent = 'Erreur initialisation Google API';
       });
     }
 
-    // Met à jour l'UI en fonction de la connexion
     function updateSigninStatus(isSignedIn) {
       if (isSignedIn) {
-        authorizeButton.style.display = 'none';
-        sendButton.disabled = false;
-        statusDiv.textContent = 'Connecté à Gmail. Tu peux envoyer un email.';
-        statusDiv.style.color = 'green';
+        statusDiv.textContent = 'Connecté à Gmail.';
       } else {
-        authorizeButton.style.display = 'inline-block';
-        sendButton.disabled = true;
         statusDiv.textContent = 'Non connecté.';
-        statusDiv.style.color = 'red';
       }
     }
 
-    // Demande la connexion
-    function handleAuthClick(event) {
-      gapi.auth2.getAuthInstance().signIn();
-    }
-
-    // Fonction pour encoder le message en base64url
-    function base64urlEncode(str) {
-      return btoa(unescape(encodeURIComponent(str)))
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-    }
-
-    // Construire le corps du mail
-    function makeEmailBody(to, subject, message) {
-      let email =
-        `To: ${to}\r\n` +
-        `Subject: ${subject}\r\n` +
-        `Content-Type: text/plain; charset="UTF-8"\r\n\r\n` +
-        `${message}`;
-      return base64urlEncode(email);
-    }
-
-    // Envoyer l’email via Gmail API
-    function sendEmail() {
-      const message = document.getElementById('message').value.trim();
-      if (!message) {
-        alert('Merci d\'écrire un message.');
-        return;
-      }
-
-      // On envoie un mail à chaque destinataire (boucle)
-      Promise.all(RECIPIENTS.map(to => {
-        const raw = makeEmailBody(to, "Message depuis mon site", message);
-        return gapi.client.gmail.users.messages.send({
-          userId: 'me',
-          resource: {
-            raw: raw
-          }
-        });
-      }))
-      .then(() => {
-        statusDiv.textContent = 'Emails envoyés avec succès !';
-        statusDiv.style.color = 'green';
-      })
-      .catch(err => {
-        console.error(err);
-        statusDiv.textContent = 'Erreur lors de l’envoi des emails.';
-        statusDiv.style.color = 'red';
-      });
-    }
-
-    // Démarrer le client Google API au chargement de la page
     window.onload = handleClientLoad;
   </script>
-
 </body>
 </html>
